@@ -2,7 +2,7 @@
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
-# License::   ISC License
+# License::   MIT License
 # 
 # Copyright (c) 2012 Sittercity, Inc
 #
@@ -29,6 +29,8 @@ require 'ostruct'
 require_relative 'lib/daemon'
 require_relative 'lib/github/client'
 require_relative 'lib/github/model'
+require_relative 'lib/jenkins/client'
+require_relative 'lib/jenkins/model'
 
 VERSION = {:major=>0, :minor=>1, :revision=>0}
 
@@ -53,9 +55,10 @@ module JenkinsPullover
       # JenkinsPullover::CommandLineOptionParser.parse(opts)
       def parse(args)
         opts = OptionParser.new do |opts|
-          opts.banner = "Usage: jenkins-pullover.rb --account ACCOUNT --repo REPO [options]"
+          opts.banner = "Usage: ruby jenkins-pullover.rb --account ACCOUNT --repo REPO [options]"
+          opts.separator "       ruby jenkins-pullover.rb --account ACCOUNT --repo REPO --pull PULL --comment COMMENT"
           opts.separator ""
-          opts.separator "Options:"
+          opts.separator "Github:"
 
           # Mandentory
           opts.on("--account ACCOUNT", "[Required] The github account that owns the repository") do |account|
@@ -65,6 +68,8 @@ module JenkinsPullover
           opts.on("--repo REPO", "[Required] The github repository to pull from") do |repo|
             @options.github_repo = repo
           end
+
+          opts.separator "Options:"
 
           # Optional
           opts.on("--username USERNAME", "Your github username") do |username|
@@ -130,18 +135,33 @@ module JenkinsPullover
           :password    => @options.password
         })
 
-        parser = JenkinsPullover::Github::Model.new({
+        jenkins_client = JenkinsPullover::Jenkins::Client.new({
+          :jenkins_url       => 'http://deploy.sittercity.com:8080',
+          :jenkins_build_key => 'SHCGSOPWDBSSFHSNSDBFIO'
+        })
+
+        jenkins = JenkinsPullover::Jenkins::Model.new({
+          :jenkins_client    => jenkins_client
+        })
+
+        github = JenkinsPullover::Github::Model.new({
           :github_client => github_client,
           :debug         => @options.debug,
           :base_branch   => @options.branch
         }
         )
-        
-        parser.process_pull_requests.each do |pull|
-          parser.create_comment_for_pull(
+
+        github.process_pull_requests.each do |pull|
+          github.create_comment_for_pull(
             pull[:number],
             JenkinsPullover::Github::Model::JENKINS_PREFIX
           )
+          
+          jenkins.trigger_build_for_job('empire-specs-master', {
+            :GITHUB_ACCOUNT     => @options.github_user,
+            :GITHUB_PULL_NUMBER => pull[:number],
+            :GITHUB_USERNAME    => @options.user
+          })
         end
 
         

@@ -2,7 +2,7 @@
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
-# License::   ISC License
+# License::   MIT License
 # 
 # Copyright (c) 2012 Sittercity, Inc
 #

@@ -2,7 +2,7 @@
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
-# License::   ISC License
+# License::   MIT License
 # 
 # Copyright (c) 2012 Sittercity, Inc
 #
@@ -27,6 +27,7 @@
 # Class providing HTTP interaction with Jenkins remote trigger server
 
 require 'net/http'
+require 'uri'
 require "json"
 require_relative '../util'
 require_relative '../http/client'
@@ -49,12 +50,12 @@ module JenkinsPullover
 
      # Returns if the client is ready
      def ready
-       @jenkins_host.nil? == false
+       @jenkins_url.nil? == false
      end
 
      # Create the URI for job
      def uri_for_job(job)
-       uri = JENKINS_URI % {:job_name => job}
+       uri = @jenkins_url + JENKINS_URI % {:job_name => job}
 
        uri += "?token=#{@jenkins_build_key}" unless @jenkins_build_key.nil?
        
@@ -64,29 +65,28 @@ module JenkinsPullover
      # Triggers Jenkins to begin a build using remote trigger URI
      def trigger_build_for_job(job, params = {})
        uri = URI(uri_for_job(job))
+       
        body = nil
 
        if params.size > 0
          method = :post
-         body = URI.encode_www_form(compile_jenkins_json(params))
+         body = compile_jenkins_json(params)
        else
          method = :get
        end
-
+# URI.escape(foo, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
        execute_http_request(method, uri, body)
      end
-   end
-
-   # Compiles the json required by Jenkins API
-   def compile_jenkins_json(params)
-     buffer = []
-
-     params.each do |key, value|
-       buffer << "{\"name\": \"#{key}\", \"value\": \"#{value}\"}"
+     # Compiles the json required by Jenkins API
+     def compile_jenkins_json(params)
+       buffer = []
+  
+       params.each do |key, value|
+         buffer << "{\"name\": \"#{key}\", \"value\": \"#{value}\"}"
+       end
+  
+       "json={\"parameter\": [#{buffer.join(', ')}], \"\": \"\"}"
      end
-
-     "json={\"parameter\": [#{buffer.join(', ')}], \"\": \"\"}"
-   end
-
+    end
  end
 end

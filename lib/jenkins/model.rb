@@ -2,7 +2,7 @@
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
-# License::   ISC License
+# License::   MIT License
 # 
 # Copyright (c) 2012 Sittercity, Inc
 #
@@ -26,6 +26,7 @@
 
 # Provides methods and business logic for working with JenkinsPullover
 
+require 'net/http'
 require_relative '../util'
 
 module JenkinsPullover
@@ -50,11 +51,11 @@ module JenkinsPullover
        raise RuntimeError,
         "Jenkins client is not ready" unless @jenkins_client.ready
 
-       response = @jenkins_client.trigger_build_for_job
+       response = @jenkins_client.trigger_build_for_job(job, params)
 
        # HTTP 302 is success(??) message
        # anything else should be considered an error
-       unless response.instance_of?(HTTPFound)
+       unless response.instance_of?(Net::HTTPFound)
          raise RuntimeError,
           "Jenkins responded with Error Message:\n#{response.body}"
        end
