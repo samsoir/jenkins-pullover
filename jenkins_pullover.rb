@@ -44,12 +44,13 @@ module JenkinsPullover
       # Class constructor
       def initialize
         @options = OpenStruct.new
-        @options.branch      = 'master'
-        @options.debug       = false
-        @options.frequency   = 60
-        @options.logfile     = '/var/log/jenkins_pullover.log'
-        @options.daemon      = false
-        
+        @options.branch        = 'master'
+        @options.debug         = false
+        @options.frequency     = 60
+        @options.logfile       = '/var/log/jenkins_pullover.log'
+        @options.daemon        = false
+        @options.jenkins_url   = 'http://localhost:8080'
+        @options.jenkins_token = nil
       end
 
       # JenkinsPullover::CommandLineOptionParser.parse(opts)
@@ -136,8 +137,8 @@ module JenkinsPullover
         })
 
         jenkins_client = JenkinsPullover::Jenkins::Client.new({
-          :jenkins_url       => 'http://deploy.sittercity.com:8080',
-          :jenkins_build_key => 'SHCGSOPWDBSSFHSNSDBFIO'
+          :jenkins_url       => @options.jenkins_url,
+          :jenkins_build_key => @options.jenkins_token
         })
 
         jenkins = JenkinsPullover::Jenkins::Model.new({
