@@ -28,7 +28,6 @@
 
 require 'net/http'
 require 'uri'
-require "json"
 require_relative '../util'
 require_relative '../http/client'
 
@@ -74,9 +73,10 @@ module JenkinsPullover
        else
          method = :get
        end
-# URI.escape(foo, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+
        execute_http_request(method, uri, body)
      end
+
      # Compiles the json required by Jenkins API
      def compile_jenkins_json(params)
        buffer = []

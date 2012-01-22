@@ -44,12 +44,14 @@ module JenkinsPullover
       # Class constructor
       def initialize
         @options = OpenStruct.new
-        @options.branch      = 'master'
-        @options.debug       = false
-        @options.frequency   = 60
-        @options.logfile     = '/var/log/jenkins_pullover.log'
-        @options.daemon      = false
-        
+        @options.branch        = 'master'
+        @options.debug         = false
+        @options.frequency     = 60
+        @options.logfile       = '/var/log/jenkins_pullover.log'
+        @options.daemon        = false
+        @options.jenkins_url   = 'http://localhost:8080'
+        @options.jenkins_token = nil
+        @options.jenkins_job   = nil
       end
 
       # JenkinsPullover::CommandLineOptionParser.parse(opts)
@@ -69,9 +71,21 @@ module JenkinsPullover
             @options.github_repo = repo
           end
 
+          opts.on("--job JOB", "[Required] The jenkins job name") do |job|
+            @options.github_repo = job
+          end
+
           opts.separator "Options:"
 
           # Optional
+          opts.on("--jenkins URL", "The jenkins server URL (default = localhost:8080)") do |url|
+            @options.jenkins_url = url
+          end
+
+          opts.on("--token TOKEN", "The jenkins build token") do |token|
+            @options.jenkins_token = token
+          end
+
           opts.on("--username USERNAME", "Your github username") do |username|
             @options.user = username
           end
@@ -136,8 +150,8 @@ module JenkinsPullover
         })
 
         jenkins_client = JenkinsPullover::Jenkins::Client.new({
-          :jenkins_url       => 'http://deploy.sittercity.com:8080',
-          :jenkins_build_key => 'SHCGSOPWDBSSFHSNSDBFIO'
+          :jenkins_url       => @options.jenkins_url,
+          :jenkins_build_key => @options.jenkins_token
         })
 
         jenkins = JenkinsPullover::Jenkins::Model.new({
@@ -157,7 +171,7 @@ module JenkinsPullover
             JenkinsPullover::Github::Model::JENKINS_PREFIX
           )
           
-          jenkins.trigger_build_for_job('empire-specs-master', {
+          jenkins.trigger_build_for_job(@options.jenkins_job, {
             :GITHUB_ACCOUNT     => @options.github_user,
             :GITHUB_PULL_NUMBER => pull[:number],
             :GITHUB_USERNAME    => @options.user
