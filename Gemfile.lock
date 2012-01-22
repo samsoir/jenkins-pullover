@@ -24,4 +24,4 @@ DEPENDENCIES
   grit (= 2.3)
   json (~> 1.6.5)
   rspec
-  zmq
+  zmq (= 2.1.4)

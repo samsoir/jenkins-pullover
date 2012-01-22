@@ -50,8 +50,16 @@ module JenkinsPullover
        raise RuntimeError,
         "Jenkins client is not ready" unless @jenkins_client.ready
 
-        
+       response = @jenkins_client.trigger_build_for_job
+
+       # HTTP 302 is success(??) message
+       # anything else should be considered an error
+       unless response.instance_of?(HTTPFound)
+         raise RuntimeError,
+          "Jenkins responded with Error Message:\n#{response.body}"
+       end
        
+       response
      end
 
    end
