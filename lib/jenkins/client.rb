@@ -28,6 +28,7 @@
 
 require 'net/http'
 require 'uri'
+require "json"
 require_relative '../util'
 require_relative '../http/client'
 
@@ -69,7 +70,7 @@ module JenkinsPullover
 
        if params.size > 0
          method = :post
-         body   = compile_jenkins_json(params)
+         body = compile_jenkins_json(params)
        else
          method = :get
        end
