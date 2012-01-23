@@ -72,7 +72,7 @@ module JenkinsPullover
           end
 
           opts.on("--job JOB", "[Required] The jenkins job name") do |job|
-            @options.github_repo = job
+            @options.jenkins_job = job
           end
 
           opts.separator "Options:"
@@ -107,8 +107,8 @@ module JenkinsPullover
             @options.debug = true
           end
 
-          opts.on("-f", "--frequency SECONDS", Float, "Frequency of Github polling in seconds (default = 60) (min = 1)") do |frequency|
-            @frequency = frequency
+          opts.on("-f", "--frequency SECONDS", Integer, "Frequency of Github polling in seconds (default = 60) (min = 1)") do |frequency|
+            @options.frequency = frequency
           end
 
           opts.on("-l", "--log FILE", "Log to file (default = /var/log/jenkins_pullover.log) ") do |file|
@@ -142,46 +142,8 @@ module JenkinsPullover
 
       # Runs the main application
       def main
-        # github_client = JenkinsPullover::Github::Client.new({
-        #   :github_user => @options.github_user,
-        #   :github_repo => @options.github_repo,
-        #   :user        => @options.user,
-        #   :password    => @options.password
-        # })
-        # 
-        # jenkins_client = JenkinsPullover::Jenkins::Client.new({
-        #   :jenkins_url       => @options.jenkins_url,
-        #   :jenkins_build_key => @options.jenkins_token
-        # })
-        # 
-        # jenkins = JenkinsPullover::Jenkins::Model.new({
-        #   :jenkins_client    => jenkins_client
-        # })
-        # 
-        # github = JenkinsPullover::Github::Model.new({
-        #   :github_client => github_client,
-        #   :debug         => @options.debug,
-        #   :base_branch   => @options.branch
-        # }
-        # )
-        # 
-        # github.process_pull_requests.each do |pull|
-        #   github.create_comment_for_pull(
-        #     pull[:number],
-        #     JenkinsPullover::Github::Model::JENKINS_PREFIX
-        #   )
-        #   
-        #   jenkins.trigger_build_for_job(@options.jenkins_job, {
-        #     :GITHUB_ACCOUNT     => @options.github_user,
-        #     :GITHUB_PULL_NUMBER => pull[:number],
-        #     :GITHUB_USERNAME    => @options.user
-        #   })
-        # end
-
         daemon = JenkinsPullover::Daemon.new(@options)
         daemon.start
-
-        
       end
     end
 end

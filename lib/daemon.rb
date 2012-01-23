@@ -28,9 +28,10 @@ module JenkinsPullover
 
   class Daemon
 
-    PID = '/var/run/jenkins-pullover.pid'
+    PID    = 'jenkins-pullover.pid'
+    INPROC = "inproc://workers"
 
-    attr_accessor :options
+    attr_accessor :options, :github, :jenkins
 
     # Class constructor
     def initialize(options)
@@ -52,10 +53,10 @@ module JenkinsPullover
       # fork first child process and exit parent
       raise RuntimeError, "Failed to fork first child" if (pid = fork) == -1
       exit unless pid.nil?
-
+      
       # Restablish the session
       Process.setsid
-
+      
       # fork second child process and exit parent
       raise RuntimeError, "Failed to fork second child" if (pid = fork) == -1
       exit unless pid.nil?
@@ -65,22 +66,85 @@ module JenkinsPullover
         fhandle.write("#{pid}")
       end
 
+      file_handle = File.open(@options.logfile, 'w')
+
       # Make safe
       Dir.chdir('/')
       File.umask 0000
 
+      # Reconnect STD/IO
       STDIN.reopen('/dev/null')
-      STDOUT.reopen(@options.logfile, 'a')
-      STDERR.reopen(@options.logfile, 'a')
+      STDOUT.reopen(file_handle, 'a')
+      STDERR.reopen(file_handle, 'a')
+
+      STDOUT.sync = true
+      STDERR.sync = true
 
       trap('TERM') {
+        $stderr.puts "Shutting down server..."
         exit
       }
 
+      # Create github client
+      github_client = JenkinsPullover::Github::Client.new({
+        :github_user => @options.github_user,
+        :github_repo => @options.github_repo,
+        :user        => @options.user,
+        :password    => @options.password
+      })
 
-      puts "Ran daemon..."
+      # Create github model
+      @github = JenkinsPullover::Github::Model.new({
+        :github_client => github_client,
+        :debug         => @options.debug,
+        :base_branch   => @options.branch
+      })
+
+      jenkins_client = JenkinsPullover::Jenkins::Client.new({
+         :jenkins_url       => @options.jenkins_url,
+         :jenkins_build_key => @options.jenkins_token
+      })
+
+      @jenkins = JenkinsPullover::Jenkins::Model.new({
+         :jenkins_client    => jenkins_client
+      })
+
+
+      while true
+        $stderr.puts "running in background"
+
+        begin
+          github_proc(@options)
+        rescue => msg
+          $stderr.puts "Encountered error:\n#{msg}"
+        end
+
+        sleep @options.frequency
+      end
     end
 
-  end
+    # Github server process
+    def github_proc(options)
+      $stderr.puts(options.inspect)
+      @github.process_pull_requests.each do |pull|
 
+        jenkins_proc(options, pull)
+  
+        @github.create_comment_for_pull(
+            pull[:number],
+            JenkinsPullover::Github::Model::JENKINS_PREFIX
+        )
+        
+      end
+    end
+
+    # Jenkins server process
+    def jenkins_proc(options, pull)
+        @jenkins.trigger_build_for_job(options.jenkins_job, {
+          :GITHUB_ACCOUNT     => options.github_user,
+          :GITHUB_PULL_NUMBER => pull[:number],
+          :GITHUB_USERNAME    => options.user
+        })
+    end
+  end
 end
