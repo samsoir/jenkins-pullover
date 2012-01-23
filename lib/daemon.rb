@@ -111,7 +111,6 @@ module JenkinsPullover
 
 
       while true
-        $stderr.puts "running in background"
 
         begin
           github_proc(@options)
