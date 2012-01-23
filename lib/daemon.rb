@@ -27,15 +27,60 @@
 module JenkinsPullover
 
   class Daemon
-  
+
+    PID = '/var/run/jenkins-pullover.pid'
+
+    attr_accessor :options
+
+    # Class constructor
+    def initialize(options)
+      @options = options
+    end
+
     def start
       puts "starting server..."
+      daemonize
     end
     
     def stop
       puts "stopping server..."
     end
-  
+
+    # Daemonise the process
+    def daemonize
+      
+      # fork first child process and exit parent
+      raise RuntimeError, "Failed to fork first child" if (pid = fork) == -1
+      exit unless pid.nil?
+
+      # Restablish the session
+      Process.setsid
+
+      # fork second child process and exit parent
+      raise RuntimeError, "Failed to fork second child" if (pid = fork) == -1
+      exit unless pid.nil?
+
+      # Write out pid
+      File.open(PID, 'w') do |fhandle|
+        fhandle.write("#{pid}")
+      end
+
+      # Make safe
+      Dir.chdir('/')
+      File.umask 0000
+
+      STDIN.reopen('/dev/null')
+      STDOUT.reopen(@options.logfile, 'a')
+      STDERR.reopen(@options.logfile, 'a')
+
+      trap('TERM') {
+        exit
+      }
+
+
+      puts "Ran daemon..."
+    end
+
   end
 
 end
