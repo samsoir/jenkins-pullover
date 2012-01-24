@@ -112,13 +112,19 @@ module JenkinsPullover
 
       while true
 
-        begin
-          github_proc(@options)
-        rescue => msg
-          $stderr.puts "Encountered error:\n#{msg}"
-        end
+        raise RuntimeError, 
+          "Failed to fork worker process" if (pid = fork) == -1
 
-        sleep @options.frequency
+        if pid.nil?
+          begin
+            github_proc(@options)
+          rescue => msg
+            $stderr.puts "Encountered error:\n#{msg}"
+          end
+          exit
+        else
+          sleep @options.frequency
+        end
       end
     end
 
