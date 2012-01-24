@@ -48,7 +48,7 @@ module JenkinsPullover
         @options.debug         = false
         @options.frequency     = 60
         @options.logfile       = '/var/log/jenkins_pullover.log'
-        @options.daemon        = false
+        @options.daemon        = nil
         @options.jenkins_url   = 'http://localhost:8080'
         @options.jenkins_token = nil
         @options.jenkins_job   = nil
@@ -98,10 +98,14 @@ module JenkinsPullover
             @options.branch = branch
           end
 
-          opts.on("-d", "--daemon", "Daemonize the the process") do
-            puts "Daemonising!!!"
-            @options.daemon = true
+          opts.on("--start", "Start the daemon server") do
+            @options.daemon = :start
           end
+
+          opts.on("--stop", "Stop the daemon server") do
+            @options.daemon = :stop
+          end
+
 
           opts.on("-D", "--debug", "Output debug information to STDERR") do
             @options.debug = true
@@ -143,7 +147,7 @@ module JenkinsPullover
       # Runs the main application
       def main
         daemon = JenkinsPullover::Daemon.new(@options)
-        daemon.start
+        daemon.exec
       end
     end
 end

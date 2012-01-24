@@ -33,57 +33,23 @@ module JenkinsPullover
 
     attr_accessor :options, :github, :jenkins
 
+    # stops the daemon
+    def self.stop
+      File.open(PID, 'r') do |fhandle|
+        pid = fhandle.read()
+
+        puts pid
+
+        unless pid.empty? 
+          puts "Stopping server proc (#{pid})..."
+          Process.kill("TERM", pid.to_i)
+        end
+      end
+    end
+
     # Class constructor
     def initialize(options)
       @options = options
-    end
-
-    def start
-      puts "starting server..."
-      daemonize
-    end
-    
-    def stop
-      puts "stopping server..."
-    end
-
-    # Daemonise the process
-    def daemonize
-      
-      # fork first child process and exit parent
-      raise RuntimeError, "Failed to fork first child" if (pid = fork) == -1
-      exit unless pid.nil?
-      
-      # Restablish the session
-      Process.setsid
-      
-      # fork second child process and exit parent
-      raise RuntimeError, "Failed to fork second child" if (pid = fork) == -1
-      exit unless pid.nil?
-
-      # Write out pid
-      File.open(PID, 'w') do |fhandle|
-        fhandle.write("#{pid}")
-      end
-
-      file_handle = File.open(@options.logfile, 'w')
-
-      # Make safe
-      Dir.chdir('/')
-      File.umask 0000
-
-      # Reconnect STD/IO
-      STDIN.reopen('/dev/null')
-      STDOUT.reopen(file_handle, 'a')
-      STDERR.reopen(file_handle, 'a')
-
-      STDOUT.sync = true
-      STDERR.sync = true
-
-      trap('TERM') {
-        $stderr.puts "Shutting down server..."
-        exit
-      }
 
       # Create github client
       github_client = JenkinsPullover::Github::Client.new({
@@ -108,7 +74,65 @@ module JenkinsPullover
       @jenkins = JenkinsPullover::Jenkins::Model.new({
          :jenkins_client    => jenkins_client
       })
+    end
 
+    # Executes the daemon
+    def exec
+      case @options.daemon
+        when :start
+          start
+        when :stop
+          JenkinsPullover::Daemon.stop
+        else
+          github_proc(@options)
+      end
+    end
+
+    # starts the daemon
+    def start
+      puts "starting server..."
+      daemonize
+    end
+
+    # Daemonise the process
+    def daemonize
+      
+      # fork first child process and exit parent
+      raise RuntimeError, "Failed to fork first child" if (pid = fork) == -1
+      exit unless pid.nil?
+      
+      # Restablish the session
+      Process.setsid
+      
+      # fork second child process and exit parent
+      raise RuntimeError, "Failed to fork second child" if (pid = fork) == -1
+      exit unless pid.nil?
+
+      sid = Process.pid
+
+      # Write out pid
+      File.open(PID, 'w') do |fhandle|
+        fhandle.write("#{sid}")
+      end
+
+      file_handle = File.open(@options.logfile, 'w')
+
+      # Make safe
+      Dir.chdir('/')
+      File.umask 0000
+
+      # Reconnect STD/IO
+      STDIN.reopen('/dev/null')
+      STDOUT.reopen(file_handle, 'a')
+      STDERR.reopen(file_handle, 'a')
+
+      STDOUT.sync = true
+      STDERR.sync = true
+
+      trap('TERM') {
+        $stderr.puts "Shutting down server..."
+        exit
+      }
 
       while true
 
