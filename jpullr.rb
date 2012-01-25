@@ -44,15 +44,42 @@ module JenkinsPullover
       # Class constructor
       def initialize
         @options = OpenStruct.new
-        @options.command       = nil
-        @options.branch        = 'master'
-        @options.debug         = false
-        @options.frequency     = 5
-        @options.logfile       = 'var/log/jpullr.log'
-        @options.daemon        = nil
-        @options.jenkins_url   = 'http://localhost:8080'
-        @options.jenkins_token = nil
-        @options.jenkins_job   = nil
+        @options.command = :daemon
+
+        @options.daemon  = {
+          :command      => nil, 
+          :debug        => false, 
+          :log_file     => 'var/log/jpullr.log',
+          :frequency    => 5
+        }
+
+        @options.github  = {
+          :command      => nil,
+          :remote_name  => nil,
+          :account      => nil,
+          :repo         => nil,
+          :branch       => 'master',
+          :pull         => nil,
+          :message      => nil,
+          :close        => false,
+          :merge        => false,
+          :user         => nil,
+          :password     => nil
+        }
+
+        @options.jenkins = {
+          :command      => nil,
+          :jenkins_name => nil,
+          :jenkins_dsn  => 'http://localhost:8080',
+          :job          => nil,
+          :token        => nil
+        }
+
+        @options.attach  = {
+          :command      => nil,
+          :github       => nil,
+          :jenkins      => nil
+        }
       end
 
       # JenkinsPullover::CommandLineOptionParser.parse(opts)
@@ -68,28 +95,28 @@ module JenkinsPullover
 
           # commands
           opts.on_head("start", "Start the server") do
-            @options.daemon = :start
+            @options.daemon[:command]   = :start
           end
 
           opts.on_head("stop", "Stop the server") do
-            @options.daemon = :stop
+            @options.daemon[:command]   = :stop
           end
 
           opts.on_head("restart", "Restart the server") do
-            @options.daemon = :restart
+            @options.daemon[:command]   = :restart
           end
 
           opts.separator "Options:"
           opts.on("-D", "--debug", "Output debug information to STDERR") do
-            @options.debug = true
+            @options.daemon[:debug]     = true
           end
 
           opts.on("-f", "--frequency SECONDS", Integer, "Frequency of Github polling in seconds (default = 5) (min = 1)") do |frequency|
-            @options.frequency = frequency
+            @options.daemon[:frequency] = frequency
           end
 
           opts.on("-l", "--log FILE", "Log to file (default = var/log/jenkins_pullover.log) ") do |file|
-            @options.logfile = file
+            @options.daemon[:log_file]  = file
           end
 
           opts.separator ""
@@ -228,15 +255,16 @@ module JenkinsPullover
 
         opts.parse!(args)
 
-        if @options.github_user.nil?
-          puts("Error: --account argument is required")
-          puts opts
-          exit JenkinsPullover::CommandLine::ERR_NO_GITHUB_ACCOUNT
-        elsif @options.github_repo.nil?
-          puts("Error: --repo argument is required")
-          puts opts
-          exit JenkinsPullover::CommandLine::ERR_NO_GITHUB_REPO
-        end
+        # if @options.github_user.nil?
+        #   puts("Error: --account argument is required")
+        #   puts opts
+        #   exit JenkinsPullover::CommandLine::ERR_NO_GITHUB_ACCOUNT
+        # elsif @options.github_repo.nil?
+        #   puts("Error: --repo argument is required")
+        #   puts opts
+        #   exit JenkinsPullover::CommandLine::ERR_NO_GITHUB_REPO
+        # end
+
       end
 
       # Runs the main application
