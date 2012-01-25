@@ -56,8 +56,8 @@ module JenkinsPullover
         # Provides a hash of URI components
         def uri_parts(uri)
           uri_parts = {
-            :protocol => JenkinsPullover::Github::Client::GITHUB_API_PROTOCOL,
-            :host     => JenkinsPullover::Github::Client::GITHUB_API_HOST,
+            :protocol => GITHUB_API_PROTOCOL,
+            :host     => GITHUB_API_HOST,
             :uri      => uri
           }
         end

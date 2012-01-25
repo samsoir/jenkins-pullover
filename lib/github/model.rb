@@ -113,8 +113,7 @@ module JenkinsPullover
       def get_comments_for_pull(id)
         comments_json = @github_client.comments_for_pull_request(id)
         
-        comments = JenkinsPullover::Github::Model
-          .parse_github_json(comments_json)
+        comments = JenkinsPullover::Github::Model.parse_github_json(comments_json)
 
         if @debug
           $stderr.puts(" => No comments for #{id}") unless comments.size > 0
@@ -134,19 +133,19 @@ module JenkinsPullover
         build_required = false
 
         if pull[:merged]
-          $stderr.puts(" => Pull #{id} already merged") if @debug
+          $stderr.puts(" => Pull #{pull[:number]} already merged") if @debug
           return build_required
         end
 
-        if pull[:mergable]
-          $stderr.puts(" => Pull #{id} is not mergeable") if @debug
+        unless pull[:mergable]
+          $stderr.puts(" => Pull #{pull[:number]} is not mergeable") if @debug
           return build_required
         end
 
         # Get comments for the current pull
         comments = get_comments_for_pull(pull[:number])
         pull_lastupdated = DateTime.strptime(pull[:updated_at])
-        last_build = Time.new(0)
+        last_build = DateTime.new(0)
 
         if comments.size > 0
           previous_build = nil
@@ -157,7 +156,7 @@ module JenkinsPullover
             end
           end
 
-          if @debug && last_build != Time.new(0)
+          if @debug && last_build != DateTime.new(0)
             $stderr
               .puts(" => Last build detected at #{last_build}")
           end

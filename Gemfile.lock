@@ -18,3 +18,4 @@ PLATFORMS
 DEPENDENCIES
   json (~> 1.6.5)
   rspec
+  rspec-mocks
