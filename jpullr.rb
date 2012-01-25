@@ -268,7 +268,9 @@ module JenkinsPullover
       end
 
       # Runs the main application
-      def main
+      def main(args)
+        app.parse(args)
+
         daemon = JenkinsPullover::Daemon.new(@options)
         daemon.exec
       end
@@ -277,6 +279,4 @@ end
 
 # Invoke the application here
 app = JenkinsPullover::CommandLine.new
-app.parse(ARGV)
-
-app.main
+app.main(ARGV)
