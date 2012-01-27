@@ -43,6 +43,12 @@ module JenkinsPullover
        initialize_opts(opts)
      end
 
+     # Return the ready state
+     def ready?
+       return false if @jenkins_client.nil?
+       @jenkins_client.ready?
+     end
+
      # Triggers a scheduled build for the job supplied
      def trigger_build_for_job(job, params = {})
        raise RuntimeError,
@@ -65,7 +71,7 @@ module JenkinsPullover
 
      # Jenkins server process
      def process(options, pull)
-       trigger_build_for_job(options.jenkins_job, {
+       trigger_build_for_job(options[:jenkins], {
          :GITHUB_PULL_NUMBER => pull[:number],
        }).instance_of(Net::HTTPFound)
      end

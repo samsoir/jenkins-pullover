@@ -1,4 +1,4 @@
-# Jenkins Pullover Github Client Rspec Tests
+# Jenkins Pullover Jenkins Client Rspec Tests
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 

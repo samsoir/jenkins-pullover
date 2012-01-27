@@ -1,4 +1,4 @@
-# Jenkins Pullover Daemon Task
+# Jenkins Pullover Jenkins Model Rspec Tests
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
@@ -24,51 +24,31 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../github/model"
+describe JenkinsPullover::Jenkins::Model do
 
-module JenkinsPullover
-  module Daemon
-
-    class Task
-
-      include JenkinsPullover::Util
-
-      attr_accessor :github_model, :jenkins_model, :options
-
-      # Class constructor
-      def initialize(opts = {})
-        initialize_opts(opts)
-      end
-
-      # Report the ready state of the task
-      def ready?
-        return false if @github_model.nil? || @jenkins_model.nil?
-
-        @github_model.ready? && @jenkins_model.ready?
-      end
-
-      # Setter for the github model method
-      def github_model=(github_model)
-        raise RuntimeError, "Must be instance of github_model" unless
-          github_model.kind_of?(JenkinsPullover::Github::Model)
-
-        @github_model = github_model
-      end
-
-      # Setter for the jenkins model method
-      def jenkins_model=(jenkins_model)
-        raise RuntimeError, "Must be instance of jenkins_model" unless
-          jenkins_model.kind_of?(JenkinsPullover::Jenkins::Model)
-
-        @jenkins_model = jenkins_model
-      end
-
-      # Run task
-      def process
-
-      end
-
-    end
+  it "returns a non-ready state if the client is not present" do
+    jenkins_model = JenkinsPullover::Jenkins::Model.new
     
+    jenkins_model.ready?.should be_false
+  end
+
+  it "returns the correct ready state if the client is present and ready" do
+    jenkins_client = double("jenkins_client", {:ready? => true})
+
+    jenkins_model = JenkinsPullover::Jenkins::Model.new({
+      :jenkins_client => jenkins_client
+    })
+    
+    jenkins_model.ready?.should be_true
+  end
+
+  it "returns a non-ready state if the client is present but not ready" do
+    jenkins_client = double("jenkins_client", {:ready? => false})
+
+    jenkins_model = JenkinsPullover::Jenkins::Model.new({
+      :jenkins_client => jenkins_client
+    })
+    
+    jenkins_model.ready?.should be_false
   end
 end
