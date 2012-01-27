@@ -91,6 +91,11 @@ module JenkinsPullover
         @tasks.delete task.hash
       end
 
+      # Clears all tasks from the heap
+      def clear_tasks
+        @tasks.clear
+      end
+
       # Executes the daemon
       def exec
         case @options.daemon

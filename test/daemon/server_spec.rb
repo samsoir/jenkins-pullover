@@ -34,7 +34,7 @@ describe JenkinsPullover::Daemon::Server do
 
     daemon.tasks.empty?.should be_true
 
-    daemon.add_task JenkinsPullover::Daemon::Task.new
+    daemon.add_task(JenkinsPullover::Daemon::Task.new)
     daemon.tasks.empty?.should be_false
     daemon.tasks.size.should eq(1)
   end
@@ -61,7 +61,19 @@ describe JenkinsPullover::Daemon::Server do
   end
 
   it "clears all tasks from the daemon when reset" do
-    
+    daemon = JenkinsPullover::Daemon::Server.new({})
+    tasks = {
+      :task_a => JenkinsPullover::Daemon::Task.new,
+      :task_b => JenkinsPullover::Daemon::Task.new
+    }
+
+    tasks.each do |key, task|
+      daemon.add_task(task)
+    end
+
+    daemon.clear_tasks
+
+    daemon.tasks.empty?.should be_true
   end
 
 end 
