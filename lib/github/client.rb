@@ -27,6 +27,7 @@
 # This class provides the basic HTTP interface to Github API, providing a
 # simple set of methods for interacting with Pull requests
 
+require "json"
 require 'net/http'
 require_relative '../util'
 require_relative '../http/client'
@@ -43,13 +44,18 @@ module JenkinsPullover
         attr_accessor :user, :password, :github_user, :github_repo
         attr_writer :debug
 
+        # Parse the Github json into Ruby
+        def self.parse_github_json(github_json)
+          JSON.parse(github_json, {:symbolize_names => true})
+        end
+
         # Class constructor
         def initialize(opts = {})
           initialize_opts(opts)
         end
 
         # Client ready
-        def ready
+        def ready?
           @github_user && @github_repo
         end
 
@@ -91,26 +97,54 @@ module JenkinsPullover
         # Loads Pull Requests from Github
         def pull_requests
           uri = URI(uri_string_for_pull_requests)
-          execute_http_request(:get, uri).body
+          pull_requests_json = execute_http_request(:get, uri).body
+          
+          pull_requests JenkinsPullover::Github::Client
+            .parse_github_json(pull_requests_json)
+
+          if pull_requests.kind_of?(Hash) && pull_requests.has_key?(:message)
+            raise RuntimeError,
+              "Github responded with error: #{pulls[:message]}"
+          end
+
+          pull_requests
         end
 
         # Loads the fall Pull request
         def pull_request(id)
           uri = URI(uri_string_for_pull(id))
-          execute_http_request(:get, uri).body
+          pulls_json = execute_http_request(:get, uri).body
+
+          if pulls_json.kind_of?(Hash) && pulls_json.has_key?(:message)
+            raise RuntimeError,
+              "Github responded with error: #{pulls[:message]}"
+          end
+
+          JenkinsPullover::Github::Client
+            .parse_github_json(pulls_json)
         end
 
         # Loads Comments for Pull Request from Github
         def comments_for_pull_request(id)
           uri = URI(uri_string_for_comments_on_pull(id))
-          execute_http_request(:get, uri).body
+          comments_json = execute_http_request(:get, uri).body
+
+          if comments_json.kind_of?(Hash) && comments_json.has_key?(:message)
+            raise RuntimeError,
+              "Github responded with error: #{pulls[:message]}"
+          end
+
+          JenkinsPullover::Github::Client
+            .parse_github_json(comments_json)
         end
 
         # Creates a comment on the Pull Request on Github
         # :comment must contain a json body
         def create_comment_for_pull(id, comment)
           uri = URI(uri_comment_on_pull(id))
-          execute_http_request(:post, uri, comment)
+          comment_json = JSON.generate(comment)
+
+          execute_http_request(:post, uri, comment_json)
         end
 
     end

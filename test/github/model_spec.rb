@@ -31,32 +31,44 @@ require_relative '../../lib/github/model'
 
 describe JenkinsPullover::Github::Model do
 
-  it "parses a json response body into json objects" do
+  it "correctly reports its unready state with no client" do
+    github_model = JenkinsPullover::Github::Model.new
 
-    mock_json = '{"foo": "bar", "number": 2, "bool": true}'
+    github_model.ready?.should be_false
+  end
 
-    parsed_json = JenkinsPullover::Github::Model
-      .parse_github_json(mock_json)
 
-    
-    parsed_json.should be_instance_of(Hash)
+  it "correctly reports its ready state with a ready client" do
+    github_client = double("JenkinsPullover::Github::Client")
+    github_client.stub(:ready?).and_return(true)
+    github_client.stub(:nil?).and_return(false)
+    github_model = JenkinsPullover::Github::Model.new({
+      :github_client  => github_client
+    })
 
-    parsed_json[:foo].should eq("bar")
-    parsed_json[:number].should eq(2)
-    parsed_json[:number].should be_kind_of(Integer)
-    parsed_json[:bool].should be_true
-    parsed_json[:bool].should be_instance_of(TrueClass)
+    github_model.ready?.should be_true
+  end
 
+  it "correctly reports its unready state with client that is not ready" do
+    github_client = double("JenkinsPullover::Github::Client")
+    github_client.stub(:nil?).and_return(false)
+    github_client.stub(:ready?).and_return(false)
+    github_model = JenkinsPullover::Github::Model.new({
+      :github_client  => github_client
+    })
+
+    github_model.ready?.should be_false
   end
 
   it "correctly filters the pulls that do not match the build base" do
 
     github_client = double("JenkinsPullover::Github::Client")
     github_client.stub(:pull_request).and_return(
-      "{\"number\": 1, \"base\": {\"label\": \"foo/bar\"}}",
-      "{\"number\": 2, \"base\": {\"label\": \"foo/bar\"}}",
-      "{\"number\": 3, \"base\": {\"label\": \"fubar\"}}"
+      {:number => 1, :base => {:label => 'foo/bar'}},
+      {:number => 2, :base => {:label => 'foo/bar'}},
+      {:number => 3, :base => {:label => 'fubar'}}
     )
+    github_client.stub(:ready?).and_return(true)
 
     github_model = JenkinsPullover::Github::Model.new({
       :base_branch   => 'foo/bar', 
@@ -84,16 +96,14 @@ describe JenkinsPullover::Github::Model do
   end
 
   it "identifies if a build is required from the pull request" do
-
-    build_comment = 'JenkinsPullover Build Initiated'
-
-    github_client = double("JenkinsPullover::Github::Client")
+    build_comment = 'JenkinsPullover'
+    github_client = github_mock_client
     github_client.stub(:comments_for_pull_request).and_return(
-      "[{\"body\": \"Foobar\", \"created_at\": \"2012-01-25T12:00:00Z\"}, {\"body\": \"#{build_comment}\", \"created_at\": \"2012-01-25T12:00:03Z\"}]",
-      "[{\"body\": \"Foobar\", \"created_at\": \"2012-01-25T12:00:00Z\"}, {\"body\": \"#{build_comment}\", \"created_at\": \"2012-01-25T12:00:02Z\"}, {\"body\": \"Fubar\", \"created_at\": \"2012-01-25T12:00:10Z\"}]",
-      "[{\"body\": \"Foobar\", \"created_at\": \"2012-01-25T12:00:00Z\"}]",
-      "[{\"body\": \"Foobar\", \"created_at\": \"2012-01-25T12:00:00Z\"}, {\"body\": \"Foobar\", \"created_at\": \"2012-01-25T12:00:03Z\"}, {\"body\": \"Foobar\", \"created_at\": \"2012-01-26T10:00:00Z\"}, {\"body\": \"Foobar\", \"created_at\": \"2012-01-30T18:00:00Z\"}]",
-      "[]",
+      [{:body => "Foobar", :created_at => "2012-01-25T12:00:00Z"}, {:body => "#{build_comment} has scheduled a build", :created_at => "2012-01-25T12:00:03Z"}],
+      [{:body => "Foobar", :created_at => "2012-01-25T12:00:00Z"}, {:body => "#{build_comment} has scheduled a build", :created_at => "2012-01-25T12:00:02Z"}, {:body => "Fubar", :created_at => "2012-01-25T12:00:10Z"}],
+      [{:body => "Foobar", :created_at => "2012-01-25T12:00:00Z"}],
+      [{:body => "Foobar", :created_at => "2012-01-25T12:00:00Z"}, {:body => "Foobar", :created_at => "2012-01-25T12:00:03Z"}, {:body => "Foobar", :created_at => "2012-01-26T10:00:00Z"}, {:body => "Foobar", :created_at => "2012-01-30T18:00:00Z"}],
+      [],
     )
 
     pulls = [
@@ -149,7 +159,8 @@ describe JenkinsPullover::Github::Model do
     ]
 
     github_model = JenkinsPullover::Github::Model.new({
-      :github_client  => github_client
+      :github_client  => github_client,
+      :comment_prefix => build_comment
     })
 
     pulls.each do |pull|
@@ -162,15 +173,15 @@ describe JenkinsPullover::Github::Model do
     messages = [
       {
         :data    => [1, "this is a message"],
-        :args    => [1, "{\"body\":\"this is a message\"}"]
+        :args    => [1, {:body => "this is a message"}]
       },
       {
         :data    => [2, "this is another message"],
-        :args    => [2, "{\"body\":\"this is another message\"}"]
+        :args    => [2, {:body => "this is another message"}]
       },
       {
         :data    => [3, "this is a final message"],
-        :args    => [3, "{\"body\":\"this is a final message\"}"]
+        :args    => [3, {:body => "this is a final message"}]
       }
     ]
 
@@ -187,4 +198,60 @@ describe JenkinsPullover::Github::Model do
     
   end
 
+  it "creates a SUCCESS message on a good build" do
+    comment_prefix = 'TestBuilder'
+    build_number   = 12383
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :comment_prefix => comment_prefix
+    })
+    
+    github_model.build_result_message(build_number, :success).should eq(
+      "#{comment_prefix} build:#{build_number} was a SUCCESS"
+    )
+  end
+
+  it "creates a FAILURE message on a good build" do
+    comment_prefix = 'TestBuilder'
+    build_number   = 12383
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :comment_prefix => comment_prefix
+    })
+    
+    github_model.build_result_message(build_number, :failed).should eq(
+      "#{comment_prefix} build:#{build_number} was a FAILURE"
+    )
+  end
+
+  it "creates a build started message with build number" do
+    comment_prefix = 'TestBuilder'
+    build_number   = 12383
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :comment_prefix => comment_prefix
+    })
+    
+    github_model.build_started_message(build_number).should eq(
+      "#{comment_prefix} has started pull request build:#{build_number}"
+    )
+  end
+
+  it "creates a build scheduled message" do
+    comment_prefix = 'TestBuilder'
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :comment_prefix => comment_prefix
+    })
+    
+    github_model.build_scheduled_message.should eq(
+      "#{comment_prefix} has scheduled a build"
+    )
+  end
+end
+
+def github_mock_client
+  github_client = double("JenkinsPullover::Github::Client")
+  github_client.stub(:ready?).and_return(true)
+  github_client
 end

@@ -1,4 +1,4 @@
-# Jenkins Pullover Jenkins Model
+# Jenkins Pullover Daemon test
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
@@ -24,52 +24,44 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-# Provides methods and business logic for working with JenkinsPullover
+require_relative "../../lib/daemon/server.rb"
+require_relative "../../lib/daemon/task.rb"
 
-require 'net/http'
-require_relative '../util'
+describe JenkinsPullover::Daemon::Server do
 
-module JenkinsPullover
-  module Jenkins
-   
-   class Model
+  it "adds tasks to the daemon" do
+    daemon = JenkinsPullover::Daemon::Server.new({})
 
-     include JenkinsPullover::Util
+    daemon.tasks.empty?.should be_true
 
-     attr_accessor :jenkins_client
+    daemon.add_task JenkinsPullover::Daemon::Task.new
+    daemon.tasks.empty?.should be_false
+    daemon.tasks.size.should eq(1)
+  end
 
-     # Class constructor
-     def initialize(opts = {})
-       initialize_opts(opts)
-     end
+  it "raises an error if task is not a real task" do
+    daemon = JenkinsPullover::Daemon::Server.new({})
 
-     # Triggers a scheduled build for the job supplied
-     def trigger_build_for_job(job, params = {})
-       raise RuntimeError,
-        "No Jenkins client is available" if @jenkins_client.nil?
+    expect { daemon.add_task({}) }.to raise_error(RuntimeError, "you can only add real tasks")
+  end
 
-       raise RuntimeError,
-        "Jenkins client is not ready" unless @jenkins_client.ready
+  it "removes a task from the daemon by a unique task" do
+    daemon = JenkinsPullover::Daemon::Server.new({})
+    tasks = {
+      :task_a => JenkinsPullover::Daemon::Task.new,
+      :task_b => JenkinsPullover::Daemon::Task.new
+    }
 
-       response = @jenkins_client.trigger_build_for_job(job, params)
+    tasks.each do |key, task|
+      daemon.add_task(task)
+    end
 
-       # HTTP 302 is success(??) message
-       # anything else should be considered an error
-       unless response.instance_of?(Net::HTTPFound)
-         raise RuntimeError,
-          "Jenkins responded with Error Message:\n#{response.body}"
-       end
-       
-       response
-     end
+    daemon.remove_task(tasks[:task_a])
+    daemon.tasks.has_key?(tasks[:task_a]).should be_false
+  end
 
-     # Jenkins server process
-     def process(options, pull)
-       trigger_build_for_job(options.jenkins_job, {
-         :GITHUB_PULL_NUMBER => pull[:number],
-       }).instance_of(Net::HTTPFound)
-     end
-   end
+  it "clears all tasks from the daemon when reset" do
     
   end
-end
+
+end 

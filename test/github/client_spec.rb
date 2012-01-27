@@ -31,6 +31,24 @@ require_relative '../../lib/github/client'
 
 describe JenkinsPullover::Github::Client do
 
+  it "parses a json response body into json objects" do
+
+    mock_json = '{"foo": "bar", "number": 2, "bool": true}'
+
+    parsed_json = JenkinsPullover::Github::Client
+      .parse_github_json(mock_json)
+
+    
+    parsed_json.should be_instance_of(Hash)
+
+    parsed_json[:foo].should eq("bar")
+    parsed_json[:number].should eq(2)
+    parsed_json[:number].should be_kind_of(Integer)
+    parsed_json[:bool].should be_true
+    parsed_json[:bool].should be_instance_of(TrueClass)
+
+  end
+
   it "contains the args passed to initialized" do
 
     args = {
@@ -57,13 +75,13 @@ describe JenkinsPullover::Github::Client do
 
     github_client = JenkinsPullover::Github::Client.new args
 
-    github_client.ready.should be_true
+    github_client.ready?.should be_true
   end
 
   it "returns false if the client is not ready" do
 
     github_client = JenkinsPullover::Github::Client.new
-    github_client.ready.should be_false
+    github_client.ready?.should be_false
 
   end
 
@@ -80,18 +98,5 @@ describe JenkinsPullover::Github::Client do
 
   end
 
-
-  it "pulls requests from github given correct URI" do
-
-    args = {
-       :github_user => 'kohana',
-       :github_repo => 'core',
-     }
-
-    github_client = JenkinsPullover::Github::Client.new args
-    
-    github_client.pull_requests.should be_a_kind_of(String)
-
-  end
 
 end

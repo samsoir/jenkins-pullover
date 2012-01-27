@@ -1,4 +1,4 @@
-# Jenkins Pullover Jenkins Model
+# Jenkins Pullover Daemon Task
 
 # Author::    Sam de Freyssinet (sam@def.reyssi.net)
 # Copyright:: Copyright (c) 2012 Sittercity, Inc. All Rights Reserved. 
@@ -24,52 +24,12 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-# Provides methods and business logic for working with JenkinsPullover
-
-require 'net/http'
-require_relative '../util'
-
 module JenkinsPullover
-  module Jenkins
-   
-   class Model
+  module Daemon
 
-     include JenkinsPullover::Util
-
-     attr_accessor :jenkins_client
-
-     # Class constructor
-     def initialize(opts = {})
-       initialize_opts(opts)
-     end
-
-     # Triggers a scheduled build for the job supplied
-     def trigger_build_for_job(job, params = {})
-       raise RuntimeError,
-        "No Jenkins client is available" if @jenkins_client.nil?
-
-       raise RuntimeError,
-        "Jenkins client is not ready" unless @jenkins_client.ready
-
-       response = @jenkins_client.trigger_build_for_job(job, params)
-
-       # HTTP 302 is success(??) message
-       # anything else should be considered an error
-       unless response.instance_of?(Net::HTTPFound)
-         raise RuntimeError,
-          "Jenkins responded with Error Message:\n#{response.body}"
-       end
-       
-       response
-     end
-
-     # Jenkins server process
-     def process(options, pull)
-       trigger_build_for_job(options.jenkins_job, {
-         :GITHUB_PULL_NUMBER => pull[:number],
-       }).instance_of(Net::HTTPFound)
-     end
-   end
+    class Task
+      
+    end
     
   end
 end

@@ -26,6 +26,7 @@
 
 # Class providing HTTP interaction with Jenkins remote trigger server
 
+require 'json'
 require 'net/http'
 require 'uri'
 require_relative '../util'
@@ -48,33 +49,34 @@ module JenkinsPullover
      end
 
      # Returns if the client is ready
-     def ready
+     def ready?
        @jenkins_url.nil? == false
      end
 
      # Create the URI for job
      def uri_for_job(job)
        uri = @jenkins_url + JENKINS_URI % {:job_name => job}
-
        uri += "?token=#{@jenkins_build_key}" unless @jenkins_build_key.nil?
-       
        uri
+     end
+
+     # Create a jenkins post body for build
+     def body(params = {})
+       return nil if params.empty?
+       "json="+compile_jenkins_json(params)
+     end
+
+     # Returns the correct HTTP method for the body
+     def method(body)
+       return :post unless body.nil?
+       :get
      end
 
      # Triggers Jenkins to begin a build using remote trigger URI
      def trigger_build_for_job(job, params = {})
        uri = URI(uri_for_job(job))
-       
-       body = nil
-
-       if params.size > 0
-         method = :post
-         body = compile_jenkins_json(params)
-       else
-         method = :get
-       end
-
-       execute_http_request(method, uri, body)
+       request_body = create_jenkins_post_body(params)
+       execute_http_request(method(request_body), uri, request_body)
      end
 
      # Compiles the json required by Jenkins API
@@ -82,10 +84,11 @@ module JenkinsPullover
        buffer = []
   
        params.each do |key, value|
-         buffer << "{\"name\": \"#{key}\", \"value\": \"#{value}\"}"
+         buffer << {:name => key, :value => value}
        end
-  
-       "json={\"parameter\": [#{buffer.join(', ')}], \"\": \"\"}"
+       parameters = {:parameter => buffer, "" => ""}
+
+       JSON.generate(parameters)
      end
     end
  end

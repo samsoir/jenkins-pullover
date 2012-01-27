@@ -24,7 +24,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-require "json"
 require "date"
 require_relative '../util'
 
@@ -34,52 +33,42 @@ module JenkinsPullover
 
       include JenkinsPullover::Util
 
-      JENKINS_PREFIX = "JenkinsPullover Build Initiated"
-
       attr_accessor :github_client, :github_user, :github_repo, :user, 
-        :password, :base_branch
+        :password, :base_branch, :comment_prefix
       attr_writer :debug
-
-      # Parse the Github json into Ruby
-      def self.parse_github_json(github_json)
-        JSON.parse(github_json, {:symbolize_names => true})
-      end
 
       # Class contructor overloaded
       def initialize(opts = {})
         initialize_opts(opts)
       end
 
+      # Report the ready state of the model
+      def ready?
+        return false if @github_client.nil?
+        @github_client.ready?
+      end
+
       # Processs open pull requests for building
       def process_pull_requests
-        raise RuntimeError,
-          "Github client is not available" if @github_client.nil?
-
         raise RuntimeError, 
-          "Github client is not ready" unless @github_client.ready
+          "Github client is not ready" unless ready?
 
         pulls_requiring_build = []
 
         start_time = Time.now.to_f
         $stderr.puts("Starting Github inspection...") if @debug
-        pulls_json = @github_client.pull_requests
+        pull_requests = @github_client.pull_requests
 
-        # Parse the JSON into JSON Objects
-        pulls = JenkinsPullover::Github::Model.parse_github_json(pulls_json)
-
-        if pulls.kind_of?(Hash) && pulls.has_key?(:message)
-          raise RuntimeError,
-            "Github responded with error: #{pulls[:message]}"
-        end
-
-        pulls.select {|pull| pull[:state] == "open"}.each do |pull|
+        pull_requests.select {|pull_request| 
+          pull_request[:state] == "open"
+        }.each do |pull_request|
           # Check the base branch matches
-          next unless check_pull_base_branch(pull)
+          next unless check_pull_base_branch(pull_request)
 
           # Examine the comments to detect whether build required
-          if build_required(pull)
+          if build_required(pull_request)
             $stderr
-              .puts(" => Build required on pull #{pull[:number]}") if @debug
+              .puts(" => Build required on pull #{pull_request[:number]}") if @debug
             
             pulls_requiring_build << pull
           end
@@ -93,17 +82,20 @@ module JenkinsPullover
 
       # Checks the pull request against the base branch
       def check_pull_base_branch(pull)
+        raise RuntimeError, 
+          "Github client is not ready" unless ready?
+
         $stderr.puts(" => Processing pull #{pull[:number]}...") if @debug
 
-        pull_detail = @github_client.pull_request(pull[:number]);
-        detail = JenkinsPullover::Github::Model.parse_github_json(pull_detail)
-        $stderr
-          .puts(" => #{@base_branch} <== #{detail[:base][:label]}") if @debug
+        full_pull = @github_client.pull_request(pull[:number]);
 
-        result = @base_branch == detail[:base][:label]
+        $stderr
+          .puts(" => #{@base_branch} <== #{full_pull[:base][:label]}") if @debug
+
+        result = @base_branch == full_pull[:base][:label]
 
         if @debug
-          $stderr.puts(" => Skipping pull #{pull[:number]}") unless result
+          $stderr.puts(" => Skipping pull #{full_pull[:number]}") unless result
         end
 
         result
@@ -111,9 +103,10 @@ module JenkinsPullover
 
       # Returns the comments for pull id
       def get_comments_for_pull(id)
-        comments_json = @github_client.comments_for_pull_request(id)
+        raise RuntimeError, 
+          "Github client is not ready" unless ready?
         
-        comments = JenkinsPullover::Github::Model.parse_github_json(comments_json)
+        comments = @github_client.comments_for_pull_request(id)
 
         if @debug
           $stderr.puts(" => No comments for #{id}") unless comments.size > 0
@@ -125,7 +118,7 @@ module JenkinsPullover
       # Create a comment on pull with text
       def create_comment_for_pull(pull, comment)
         body = {:body => comment}
-        @github_client.create_comment_for_pull(pull, JSON.generate(body))
+        @github_client.create_comment_for_pull(pull, body)
       end
 
       # Discover if a new build is required
@@ -151,7 +144,7 @@ module JenkinsPullover
           previous_build = nil
 
           comments.each do |comment|
-            if comment[:body].scan(/^JenkinsPullover Build Initiated/).size > 0
+            if comment[:body].match("#{build_scheduled_message}")
               last_build = DateTime.strptime(comment[:created_at])
             end
           end
@@ -168,6 +161,44 @@ module JenkinsPullover
         end
 
         build_required
+      end
+
+      # Github build result message
+      def build_result_message(build_number, state)
+        if state == :success
+          result = "SUCCESS"
+        else
+          result = "FAILURE"
+        end
+
+        "#{@comment_prefix} build:#{build_number} was a #{result}"
+      end
+
+      # Github build started message
+      def build_started_message(build_number)
+        "#{@comment_prefix} has started pull request build:#{build_number}"
+      end
+
+      # Github build scheduled message
+      def build_scheduled_message
+        "#{@comment_prefix} has scheduled a build"
+      end
+
+      # Github server process
+      def process(options, task_model)
+
+        raise RuntimeError, 
+          "Github client is not ready" unless ready?
+
+        raise RuntimeError, 
+          "Task model is not ready" unless task_model.ready?
+
+        process_pull_requests.each do |pull|
+          create_comment_for_pull(
+              pull[:number],
+              build_scheduled_message
+          ) if task_model.process(options, pull)
+        end
       end
     end
   end

@@ -26,7 +26,7 @@
 
 require 'optparse'
 require 'ostruct'
-require_relative 'lib/daemon'
+require_relative 'lib/daemon/server'
 require_relative 'lib/github/client'
 require_relative 'lib/github/model'
 require_relative 'lib/jenkins/client'
