@@ -248,6 +248,87 @@ describe JenkinsPullover::Github::Model do
       "#{comment_prefix} has scheduled a build"
     )
   end
+
+  it "fails validation for a task with no options" do
+    err = {}
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :options => {
+        :remote_name  => nil,
+        :account      => nil,
+        :repo         => nil,
+        :branch       => nil
+      },
+      :github_client => github_mock_client
+    }).validate_task(err).should be_false
+
+    err.has_key?(:remote_name).should be_true
+    err[:remote_name].should eq(:empty)
+
+    err.has_key?(:account).should be_true
+    err[:account].should eq(:empty)
+
+    err.has_key?(:repo).should be_true
+    err[:repo].should eq(:empty)
+
+    err.has_key?(:branch).should be_true
+    err[:branch].should eq(:empty)
+
+  end
+
+  it "passes validation for a task required options supplied" do
+    err = {}
+
+    github_model = JenkinsPullover::Github::Model.new({
+      :options => {
+        :remote_name  => 'foo_repository',
+        :account      => 'bar_owner',
+        :repo         => 'fubard',
+        :branch       => 'master'
+      },
+      :github_client => github_mock_client
+    }).validate_task(err).should be_true
+
+    err.empty?.should be_true
+  end
+
+    # github_model = JenkinsPullover::Github::Model.new({
+    #   :options => {
+    #     :command      => nil,
+    #     :remote_name  => nil,
+    #     :account      => nil,
+    #     :repo         => nil,
+    #     :branch       => 'master',
+    #     :pull         => nil,
+    #     :message      => nil,
+    #     :close        => false,
+    #     :merge        => false,
+    #     :user         => nil,
+    #     :password     => nil
+    #   },
+    #   :github_client => github_mock_client
+    # })
+    
+  # it "is not ready when invalid options are passed to it" do
+  #   github_model = JenkinsPullover::Github::Model.new({
+  #     :options => {
+  #       :command      => nil,
+  #       :remote_name  => nil,
+  #       :account      => nil,
+  #       :repo         => nil,
+  #       :branch       => 'master',
+  #       :pull         => nil,
+  #       :message      => nil,
+  #       :close        => false,
+  #       :merge        => false,
+  #       :user         => nil,
+  #       :password     => nil
+  #     },
+  #     :github_client => github_mock_client
+  #   })
+  # 
+  #   github_model.ready?.should be_false
+  # end
 end
 
 def github_mock_client

@@ -34,7 +34,7 @@ module JenkinsPullover
       include JenkinsPullover::Util
 
       attr_accessor :github_client, :github_user, :github_repo, :user, 
-        :password, :base_branch, :comment_prefix
+        :password, :base_branch, :comment_prefix, :options
       attr_writer :debug
 
       # Class contructor overloaded
@@ -200,6 +200,36 @@ module JenkinsPullover
           ) if task_model.process(options, pull)
         end
       end
+
+      # Validates the model
+      def validate_task(err)
+
+        result = true
+
+        if @options[:remote_name].nil?
+          err[:remote_name] = :empty
+          result = false
+        end
+
+        if @options[:account].nil?
+          err[:account] = :empty
+          result = false
+        end
+
+        if @options[:repo].nil?
+          err[:repo] = :empty
+          result = false
+        end
+
+        if @options[:branch].nil?
+          err[:branch] = :empty
+          result = false
+        end
+
+        result
+      end
+
+      # 
     end
   end
 end
